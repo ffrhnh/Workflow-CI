@@ -1,17 +1,2 @@
 Tautan Docker Hub:
-https://hub.docker.com/r/username_dockerhub_anda/titanic-mlflow
-
-=== CARA SETUP DOCKER HUB (Advance) ===
-
-1. Daftar / login di https://hub.docker.com
-2. Buat repository baru bernama: titanic-mlflow
-3. Buat Access Token:
-   - Klik avatar → Account Settings → Security → New Access Token
-   - Salin token yang muncul
-
-4. Tambahkan Secrets di GitHub repo (Settings → Secrets → Actions):
-   - DOCKER_USERNAME = username Docker Hub Anda
-   - DOCKER_TOKEN    = token yang sudah dibuat
-
-5. Workflow CI akan otomatis build & push Docker image setiap kali
-   ada push ke branch main yang mengubah file di folder MLProject/
+https://hub.docker.com/r/nna10/titanic-mlflow

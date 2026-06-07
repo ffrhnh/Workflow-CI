@@ -2,35 +2,38 @@ name: MLflow CI and Docker Build
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches:
+      - main
+      - master
 
 jobs:
   build-train-deploy:
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
-    defaults:
-      run:
-        shell: bash -el {0}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Miniconda
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
-          python-version: '3.10'
+          python-version: "3.10"
 
-      - name: Install MLflow
+      - name: Install dependencies
         run: |
           pip install mlflow pandas
 
-      - name: Run MLflow Project (Training Model via Conda)
+      - name: Run MLflow Project
         run: |
           export MLFLOW_TRACKING_URI="file://$(pwd)/mlruns_fresh"
-          mlflow run MLProject/ --experiment-name="Titanic_Classification_CI"
+          export MLFLOW_ALLOW_FILE_STORE=true
+
+          mlflow run MLProject/ \
+            --experiment-name Titanic_Classification_CI
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -38,23 +41,49 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Get MLflow Run ID, Build, & Push
+      - name: Get Run ID
+        id: get_run_id
         run: |
           export MLFLOW_TRACKING_URI="file://$(pwd)/mlruns_fresh"
-          RUN_ID=$(python -c "
-          import mlflow
-          mlflow.set_tracking_uri('file://$(pwd)/mlruns_fresh')
-          runs = mlflow.search_runs(experiment_names=['Titanic_Classification_CI'])
-          print(runs.iloc[0].run_id)
-          ")
+          export MLFLOW_ALLOW_FILE_STORE=true
+
+          RUN_ID=$(python <<EOF
+import os
+import mlflow
+
+os.environ["MLFLOW_ALLOW_FILE_STORE"] = "true"
+mlflow.set_tracking_uri("file://$(pwd)/mlruns_fresh")
+
+runs = mlflow.search_runs(
+    experiment_names=["Titanic_Classification_CI"]
+)
+
+if runs.empty:
+    raise Exception("Tidak ada MLflow run yang ditemukan")
+
+runs = runs.sort_values("start_time", ascending=False)
+
+print(runs.iloc[0].run_id)
+EOF
+)
+
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
           echo "Ditemukan Run ID: $RUN_ID"
+
+      - name: Build Docker Image from MLflow Model
+        run: |
           mlflow models build-docker \
             -m "runs:/$RUN_ID/model" \
             -n "${{ secrets.DOCKERHUB_USERNAME }}/titanic-mlflow:latest"
-          docker push "${{ secrets.DOCKERHUB_USERNAME }}/titanic-mlflow:latest"
 
-      - name: Commit and push MLflow artifacts
+      - name: Push Docker Image
+        run: |
+          docker push \
+            "${{ secrets.DOCKERHUB_USERNAME }}/titanic-mlflow:latest"
+
+      - name: Commit and Push MLflow Artifacts
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Auto-save MLflow artifacts to repo [skip ci]"
-          file_pattern: 'mlruns_fresh/**'
+          file_pattern: "mlruns_fresh/**"
+```

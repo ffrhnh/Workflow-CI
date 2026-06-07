@@ -35,7 +35,7 @@ jobs:
       - name: Run MLflow Project
         working-directory: MLProject
         run: |
-          mlflow run . -v
+          mlflow run .
 
       - name: Upload MLflow Artifacts
         uses: actions/upload-artifact@v4

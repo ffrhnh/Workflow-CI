@@ -24,11 +24,18 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install mlflow pandas numpy matplotlib scikit-learn
+      - name: Show Files
+        working-directory: MLProject
+        run: |
+          pwd
+          ls -la
+          cat MLproject
+          cat conda.yaml
 
       - name: Run MLflow Project
         working-directory: MLProject
         run: |
-          mlflow run .
+          mlflow run . -v
 
       - name: Upload MLflow Artifacts
         uses: actions/upload-artifact@v4

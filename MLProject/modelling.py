@@ -136,11 +136,6 @@ def plot_cv_results(gs, save_path):
     fig.savefig(save_path, dpi=120)
     plt.close(fig)
 
-
-# ── MLflow Manual Logging ─────────────────────────────────────────────────────
-mlflow.set_experiment(EXPERIMENT_NAME)
-
-with mlflow.start_run(run_name="RandomForest_CI") as run:
     print(f"\n[MLflow] Run ID     : {run.info.run_id}")
     print(f"[MLflow] Experiment : {EXPERIMENT_NAME}")
 

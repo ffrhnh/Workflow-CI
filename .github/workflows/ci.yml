@@ -1,74 +1,119 @@
-name: MLflow CI and Docker Build
+name: CI — MLflow Training & Docker Build
 
 on:
   push:
     branches:
       - main
+    paths:
+      - "MLProject/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  train-model:
-
+  train-and-dockerize:
+    name: Train Model + Build & Push Docker Image
     runs-on: ubuntu-latest
 
     steps:
-
-      - name: Checkout Repository
+      # ── 1. Checkout ──────────────────────────────────────────
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Python
+      # ── 2. Setup Python ──────────────────────────────────────
+      - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: Install Dependencies
+      # ── 3. Install dependencies ──────────────────────────────
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install \
-            mlflow==2.14.3 \
-            pandas==2.2.2 \
-            numpy==1.26.4 \
-            matplotlib==3.8.4 \
-            scikit-learn==1.7.2 \
-            seaborn==0.13.2
-            
+          pip install mlflow scikit-learn pandas numpy matplotlib seaborn
+
+      # ── 4. Jalankan MLflow Project ───────────────────────────
       - name: Run MLflow Project
-        working-directory: MLProject
         run: |
-            mlflow run . --env-manager local
+          cd MLProject
+          mlflow run . \
+            --env-manager=local \
+            --experiment-name "Titanic_Classification_CI"
 
-      - name: Upload MLflow Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: mlruns
-          path: MLProject/mlruns
-
-      - name: Check secret exists
+      # ── 5. Ambil Run ID terbaru ──────────────────────────────
+      - name: Get latest Run ID
         run: |
-          if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then echo "USERNAME EMPTY"; fi
-          if [ -z "${{ secrets.DOCKER_PASSWORD }}" ]; then echo "PASSWORD EMPTY"; fi
-          
+          RUN_ID=$(cd MLProject && python3 -c "
+          import mlflow
+          client = mlflow.tracking.MlflowClient()
+          exp = client.get_experiment_by_name('Titanic_Classification_CI')
+          if exp is None:
+              raise ValueError('Experiment tidak ditemukan')
+          runs = client.search_runs(
+              [exp.experiment_id],
+              order_by=['start_time DESC']
+          )
+          print(runs[0].info.run_id)
+          ")
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+          echo "Latest Run ID: $RUN_ID"
+          echo "$RUN_ID" > MLProject/run_id.txt
+
+      # ── 6. Simpan artefak mlruns ke GitHub ───────────────────
+      - name: Commit mlruns artifacts to GitHub
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name  "github-actions[bot]"
+          git add MLProject/mlruns/
+          git add MLProject/run_id.txt
+          git diff --staged --quiet \
+            || git commit -m "ci: update model artifacts [skip ci]"
+          git push
+
+      # ── 7. Setup Docker Buildx ───────────────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── 8. Login ke Docker Hub ───────────────────────────────
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build Docker Image
-        working-directory: MLProject
+      # ── 9. Build Docker image dengan mlflow build-docker ─────
+      - name: Build Docker image using mlflow build-docker
         run: |
+          cd MLProject
+          IMAGE_NAME="nna10/titanic-mlflow"
+          echo "Building image: $IMAGE_NAME"
+
           mlflow models build-docker \
-            --model-uri model \
-            --name titanic-model
-        continue-on-error: true
+            --model-uri "runs:/${{ env.RUN_ID }}/model" \
+            --name "$IMAGE_NAME"
 
-      - name: Tag Docker Image
-        run: |
-          docker tag titanic-model \
-          ${{ secrets.DOCKER_USERNAME }}/titanic-model:latest
-        continue-on-error: true
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
+          echo "Build selesai: $IMAGE_NAME"
 
-      - name: Push Docker Image
+      # ── 10. Push Docker image ke Docker Hub ──────────────────
+      - name: Push Docker image to Docker Hub
         run: |
-          docker push \
-          ${{ secrets.DOCKER_USERNAME }}/titanic-model:latest
-        continue-on-error: true
+          docker push "${{ env.IMAGE_NAME }}:latest"
+          echo "Docker image berhasil dipush:"
+          echo "  https://hub.docker.com/r/nna10/titanic-mlflow"
+
+      # ── 11. Update Tautan_DockerHub.txt & commit ─────────────
+      - name: Update Tautan_DockerHub.txt
+        run: |
+          echo "https://hub.docker.com/r/nna10/titanic-mlflow" \
+            > MLProject/Tautan_DockerHub.txt
+
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name  "github-actions[bot]"
+          git add MLProject/Tautan_DockerHub.txt
+          git diff --staged --quiet \
+            || git commit -m "ci: update Docker Hub link [skip ci]"
+          git push

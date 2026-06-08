@@ -71,7 +71,9 @@ jobs:
           git add MLProject/run_id.txt || true
           git diff --staged --quiet \
             || git commit -m "ci: update model artifacts [skip ci]"
+          git pull --rebase origin main || true
           git push
+          
       # ── 7. Setup Docker Buildx ───────────────────────────────
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

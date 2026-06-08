@@ -88,21 +88,22 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # ── 9. Build Docker image dengan mlflow build-docker ─────
+      # ── 9. Build Docker image dengan mlflow build-docker ─────
       - name: Build Docker image using mlflow build-docker
         run: |
           IMAGE_NAME="nna10/titanic-mlflow"
           echo "Building image: $IMAGE_NAME"
 
-          # Debug: lihat semua isi mlruns
-          echo "=== Isi mlruns ==="
-          find mlruns/ -type f | head -30
+          # Debug: cari MLmodel di semua lokasi
+          echo "=== Cari MLmodel ==="
+          find . -name "MLmodel" 2>/dev/null | head -10
 
           # Cari folder model yang berisi MLmodel
-          MODEL_PATH=$(find mlruns/ -name "MLmodel" | head -1 | xargs dirname)
+          MODEL_PATH=$(find . -name "MLmodel" 2>/dev/null | head -1 | xargs dirname)
           echo "=== Model path: $MODEL_PATH ==="
 
           if [ -z "$MODEL_PATH" ]; then
-            echo "ERROR: Model tidak ditemukan di mlruns!"
+            echo "ERROR: Model tidak ditemukan!"
             exit 1
           fi
 

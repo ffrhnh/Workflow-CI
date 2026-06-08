@@ -67,12 +67,11 @@ jobs:
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name  "github-actions[bot]"
-          git add MLProject/mlruns/
-          git add MLProject/run_id.txt
+          git add mlruns/ || true
+          git add MLProject/run_id.txt || true
           git diff --staged --quiet \
             || git commit -m "ci: update model artifacts [skip ci]"
           git push
-
       # ── 7. Setup Docker Buildx ───────────────────────────────
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

@@ -88,12 +88,11 @@ jobs:
       # ── 9. Build Docker image dengan mlflow build-docker ─────
       - name: Build Docker image using mlflow build-docker
         run: |
-          cd MLProject
           IMAGE_NAME="nna10/titanic-mlflow"
           echo "Building image: $IMAGE_NAME"
 
           mlflow models build-docker \
-            --model-uri "runs:/${{ env.RUN_ID }}/model" \
+            --model-uri "mlruns/1/${{ env.RUN_ID }}/artifacts/model" \
             --name "$IMAGE_NAME"
 
           echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV

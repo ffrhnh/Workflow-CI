@@ -1,2 +1,1 @@
-Tautan Docker Hub:
 https://hub.docker.com/r/nna10/titanic-mlflow

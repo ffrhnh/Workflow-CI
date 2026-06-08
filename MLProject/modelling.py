@@ -34,6 +34,9 @@ BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
 TRAIN_PATH = os.path.join(BASE_DIR, "titanic_preprocessing", "titanic_train.csv")
 TEST_PATH  = os.path.join(BASE_DIR, "titanic_preprocessing", "titanic_test.csv")
 
+# Set experiment SEBELUM start_run
+mlflow.set_experiment(EXPERIMENT_NAME)
+
 # ── Load Data ─────────────────────────────────────────────────────────────────
 train_df = pd.read_csv(TRAIN_PATH)
 test_df  = pd.read_csv(TEST_PATH)
@@ -135,6 +138,10 @@ def plot_cv_results(gs, save_path):
     plt.tight_layout()
     fig.savefig(save_path, dpi=120)
     plt.close(fig)
+
+
+# ── MLflow Logging ────────────────────────────────────────────────────────────
+with mlflow.start_run(run_name="RandomForest_CI") as run:
 
     print(f"\n[MLflow] Run ID     : {run.info.run_id}")
     print(f"[MLflow] Experiment : {EXPERIMENT_NAME}")

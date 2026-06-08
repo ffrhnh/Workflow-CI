@@ -93,12 +93,24 @@ jobs:
           IMAGE_NAME="nna10/titanic-mlflow"
           echo "Building image: $IMAGE_NAME"
 
+          # Debug: lihat semua isi mlruns
+          echo "=== Isi mlruns ==="
+          find mlruns/ -type f | head -30
+
+          # Cari folder model yang berisi MLmodel
+          MODEL_PATH=$(find mlruns/ -name "MLmodel" | head -1 | xargs dirname)
+          echo "=== Model path: $MODEL_PATH ==="
+
+          if [ -z "$MODEL_PATH" ]; then
+            echo "ERROR: Model tidak ditemukan di mlruns!"
+            exit 1
+          fi
+
           mlflow models build-docker \
-            --model-uri "mlruns/1/${{ env.RUN_ID }}/artifacts/model" \
+            --model-uri "$MODEL_PATH" \
             --name "$IMAGE_NAME"
 
           echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
-          echo "Build selesai: $IMAGE_NAME"
 
       # ── 10. Push Docker image ke Docker Hub ──────────────────
       - name: Push Docker image to Docker Hub
